@@ -63,6 +63,47 @@
     </style>
   </head>
   <body>
+    <!-- A-Frameはa-sceneパース時にコンポーネントを初期化するため、scene より前に登録必須 -->
+    <script is:inline>
+      window.addEventListener('xrloaded', () => {
+        console.log('[XR8] xrloaded - エンジン準備完了')
+      })
+      window.addEventListener('xrerror', (e) => {
+        console.error('[XR8] エラー:', e.detail)
+      })
+
+      AFRAME.registerComponent('tap-place', {
+        init() {
+          const ground = document.getElementById('ground')
+          const prompt = document.getElementById('prompt')
+
+          ground.addEventListener('click', (event) => {
+            prompt.style.display = 'none'
+
+            const entity = document.createElement('a-entity')
+            const point = event.detail.intersection.point
+
+            entity.setAttribute('geometry', 'primitive: box; width: 0.3; height: 0.3; depth: 0.3')
+            entity.setAttribute('material', 'color: #4CC3D9')
+            entity.setAttribute('position', {
+              x: point.x,
+              y: point.y + 0.15,
+              z: point.z,
+            })
+            entity.setAttribute('animation', {
+              property: 'rotation',
+              to: '0 360 0',
+              loop: true,
+              dur: 3000,
+              easing: 'linear',
+            })
+
+            document.querySelector('a-scene').appendChild(entity)
+          })
+        },
+      })
+    </script>
+
     <a id="back-btn" href="/">← 戻る</a>
     <p id="prompt">床や机をタップしてモデルを置く</p>
 
@@ -99,52 +140,5 @@
       <a-light type="directional" intensity="0.5" position="1 4 2"></a-light>
     </a-scene>
 
-    <script is:inline>
-      // XR8 起動状況をデバッグ
-      window.addEventListener('xrloaded', () => {
-        console.log('[XR8] xrloaded イベント発火 - エンジン準備完了')
-      })
-      window.addEventListener('xrerror', (e) => {
-        console.error('[XR8] エラー:', e.detail)
-      })
-
-      // 床タップで3Dオブジェクトを配置するコンポーネント
-      AFRAME.registerComponent('tap-place', {
-        init() {
-          const ground = document.getElementById('ground')
-          const prompt = document.getElementById('prompt')
-
-          ground.addEventListener('click', (event) => {
-            prompt.style.display = 'none'
-
-            const entity = document.createElement('a-entity')
-            const point = event.detail.intersection.point
-            entity.setAttribute('position', point)
-
-            // GLBモデルを使う場合:
-            // entity.setAttribute('gltf-model', '#my-model')
-            // entity.setAttribute('scale', '1 1 1')
-
-            // デモ: 回転するボックス
-            entity.setAttribute('geometry', 'primitive: box; width: 0.3; height: 0.3; depth: 0.3')
-            entity.setAttribute('material', 'color: #4CC3D9')
-            entity.setAttribute('position', {
-              x: point.x,
-              y: point.y + 0.15,
-              z: point.z,
-            })
-            entity.setAttribute('animation', {
-              property: 'rotation',
-              to: '0 360 0',
-              loop: true,
-              dur: 3000,
-              easing: 'linear',
-            })
-
-            document.querySelector('a-scene').appendChild(entity)
-          })
-        },
-      })
-    </script>
   </body>
 </html>

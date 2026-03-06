@@ -4,6 +4,10 @@ node_modules
 # Build output
 dist
 build
+.vercel/output
+
+# Astro
+.astro
 
 # Local env files
 .env

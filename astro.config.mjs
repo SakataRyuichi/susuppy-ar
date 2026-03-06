@@ -1,10 +1,11 @@
 import { defineConfig } from 'astro/config'
+import vercel from '@astrojs/vercel'
 
 export default defineConfig({
+  adapter: vercel(),
   vite: {
     server: {
-      // ngrok などのトンネルツール経由でのアクセスを許可
-      allowedHosts: 'all',
+      allowedHosts: true,
     },
   },
 })
