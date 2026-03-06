@@ -1,0 +1,57 @@
+---
+import Base from '../layouts/Base.astro'
+---
+<Base title="Susuppy AR">
+  <main>
+    <div class="hero">
+      <h1>Susuppy AR</h1>
+      <p>カメラを使ってARを体験しよう</p>
+      <a href="/ar" class="btn">AR を起動する</a>
+    </div>
+  </main>
+</Base>
+
+<style>
+  main {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100dvh;
+  }
+
+  .hero {
+    text-align: center;
+    padding: 2rem;
+  }
+
+  h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    background: linear-gradient(135deg, #fff 0%, #aaa 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  p {
+    font-size: 1.1rem;
+    color: #888;
+    margin-bottom: 2rem;
+  }
+
+  .btn {
+    display: inline-block;
+    padding: 1rem 2.5rem;
+    background: #fff;
+    color: #000;
+    border-radius: 9999px;
+    font-size: 1rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: opacity 0.2s;
+  }
+
+  .btn:hover {
+    opacity: 0.85;
+  }
+</style>
