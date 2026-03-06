@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+/* body への overflow:hidden はモバイル Safari で効かないため設定しない。
+   カメラ映像のクリッピングは ARViewer の wrapper div（overflow:hidden）が担う。
+   参考: https://blog.kimizuka.org/entry/2023/02/22/145050 */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: #000;
+}
+
+#root {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}

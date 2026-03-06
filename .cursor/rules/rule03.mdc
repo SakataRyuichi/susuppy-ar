@@ -1,0 +1,7 @@
+---
+alwaysApply: true
+---
+
+ディレクトリは昨日ごとにfeatureディレクトリを作成し、そこに関数本tないとtestなどをまとめて配置すること。
+詳細は、react-bullet-proofを参照しその構造に乗っ取ること。
+https://github.com/alan2207/bulletproof-react/tree/master/apps/react-vite
