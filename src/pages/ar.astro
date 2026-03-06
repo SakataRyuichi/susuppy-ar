@@ -1,5 +1,6 @@
 ---
-// AR体験ページ - A-Frame（8frame）+ 8th Wall xrextras
+// AR体験ページ - MindAR + A-Frame（イメージトラッキング）
+const isDev = import.meta.env.DEV
 ---
 <!doctype html>
 <html>
@@ -8,17 +9,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <title>AR体験 | Susuppy AR</title>
 
-    <!-- 8th Wall 版 A-Frame（8frame） -->
-    <script is:inline crossorigin="anonymous" src="/external/scripts/8frame-1.5.0.min.js"></script>
+    <!-- A-Frame 1.5.0 (MindAR 1.2.5 の推奨バージョン) -->
+    <script is:inline src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <!-- animation-mixer コンポーネント（GLBアニメーション再生） -->
+    <script is:inline src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.5.0/dist/aframe-extras.min.js"></script>
+    <!-- MindAR イメージトラッキング（A-Frame統合版） -->
+    <script is:inline src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
-    <!-- 8th Wall XR Extras（xrweb などのコンポーネントを提供） -->
-    <script is:inline crossorigin="anonymous" src="/external/xrextras/xrextras.js"></script>
+    <!-- LERPスムージングコンポーネント（mindar-image-target に付ける） -->
+    <script is:inline>
+      AFRAME.registerComponent('smooth-track', {
+        schema: { factor: { type: 'number', default: 0.15 } },
+        init() {
+          this.smoothPos = new THREE.Vector3()
+          this.smoothQuat = new THREE.Quaternion()
+          this.ready = false
+        },
+        tick() {
+          const obj = this.el.object3D
+          // 非表示中はスキップ
+          if (!obj.visible) { this.ready = false; return }
 
-    <!-- 8th Wall Landing Page（デスクトップ対応の起動トリガー） -->
-    <script is:inline crossorigin="anonymous" src="/external/landing-page/landing-page.js"></script>
-
-    <!-- 8th Wall XR Engine（平面検出 SLAM を含む） -->
-    <script is:inline crossorigin="anonymous" src="/external/xr/xr.js" async="true" data-preload-chunks="slam"></script>
+          if (!this.ready) {
+            this.smoothPos.copy(obj.position)
+            this.smoothQuat.copy(obj.quaternion)
+            this.ready = true
+            return
+          }
+          // MindARが毎フレームセットした位置をLERPで追従
+          this.smoothPos.lerp(obj.position, this.data.factor)
+          this.smoothQuat.slerp(obj.quaternion, this.data.factor)
+          obj.position.copy(this.smoothPos)
+          obj.quaternion.copy(this.smoothQuat)
+        }
+      })
+    </script>
 
     <style>
       html, body {
@@ -27,7 +52,6 @@
         width: 100%;
         height: 100%;
         overflow: hidden;
-        background: #000;
       }
 
       #back-btn {
@@ -45,7 +69,7 @@
         backdrop-filter: blur(8px);
       }
 
-      #prompt {
+      #hint {
         position: fixed;
         bottom: 3rem;
         left: 50%;
@@ -59,86 +83,129 @@
         white-space: nowrap;
         backdrop-filter: blur(8px);
         pointer-events: none;
+        text-align: center;
       }
     </style>
   </head>
   <body>
-    <!-- A-Frameはa-sceneパース時にコンポーネントを初期化するため、scene より前に登録必須 -->
-    <script is:inline>
-      window.addEventListener('xrloaded', () => {
-        console.log('[XR8] xrloaded - エンジン準備完了')
-      })
-      window.addEventListener('xrerror', (e) => {
-        console.error('[XR8] エラー:', e.detail)
-      })
-
-      AFRAME.registerComponent('tap-place', {
-        init() {
-          const ground = document.getElementById('ground')
-          const prompt = document.getElementById('prompt')
-
-          ground.addEventListener('click', (event) => {
-            prompt.style.display = 'none'
-
-            const entity = document.createElement('a-entity')
-            const point = event.detail.intersection.point
-
-            entity.setAttribute('geometry', 'primitive: box; width: 0.3; height: 0.3; depth: 0.3')
-            entity.setAttribute('material', 'color: #4CC3D9')
-            entity.setAttribute('position', {
-              x: point.x,
-              y: point.y + 0.15,
-              z: point.z,
-            })
-            entity.setAttribute('animation', {
-              property: 'rotation',
-              to: '0 360 0',
-              loop: true,
-              dur: 3000,
-              easing: 'linear',
-            })
-
-            document.querySelector('a-scene').appendChild(entity)
-          })
-        },
-      })
-    </script>
-
     <a id="back-btn" href="/">← 戻る</a>
-    <p id="prompt">床や机をタップしてモデルを置く</p>
+    <p id="hint">マーカー画像にカメラを向けてください</p>
 
+    <!--
+      imageTargetSrc   : .mind ファイルのパス
+      filterMinCF      : 1 Euro フィルター最小カットオフ周波数（小さい=滑らか/遅延あり、大きい=俊敏/ブレあり）
+      filterBeta       : 1 Euro フィルターベータ値（大きい=速い動きに追従）
+      missTolerance    : 認識を失ってから消えるまでのフレーム数（大きい=ちらつき減少）
+      warmupTolerance  : 認識開始に必要なフレーム数（小さい=素早く検出）
+    -->
     <a-scene
-      tap-place
-      landing-page
-      xrextras-loading
-      xrextras-runtime-error
-      renderer="colorManagement: true"
-      xrweb="allowedDevices: any"
+      mindar-image="imageTargetSrc: /ar-content/targets.mind;
+        autoStart: true;
+        uiLoading: yes; uiScanning: yes; uiError: yes;
+        filterMinCF: 0.001;
+        filterBeta: 0.01;
+        missTolerance: 10;
+        warmupTolerance: 3"
+      color-space="sRGB"
+      renderer="colorManagement: true, physicallyCorrectLights"
       vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: false"
     >
       <a-assets>
-        <!-- GLBモデルを使う場合はここに追加 -->
-        <!-- <a-asset-item id="my-model" src="/ar-content/your-model.glb"></a-asset-item> -->
+        <!-- 表示したい GLB モデル -->
+        <a-asset-item id="my-model" src="/ar-content/Meshy_AI_model_Animation_Walking_withSkin.glb"></a-asset-item>
       </a-assets>
 
-      <a-camera
-        position="0 8 0"
-        raycaster="objects: .cantap"
-        cursor="fuse: false; rayOrigin: mouse"
-      ></a-camera>
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-      <!-- 平面検出された床（透明・タップ判定あり） -->
-      <a-box
-        id="ground"
-        class="cantap"
-        scale="1000 2 1000"
-        position="0 -0.99 0"
-        material="shader: shadow; transparent: true; opacity: 0.4"
-      ></a-box>
-
-      <a-light type="ambient" intensity="0.8"></a-light>
-      <a-light type="directional" intensity="0.5" position="1 4 2"></a-light>
+      <!-- targetIndex: 0 → targets.mind の1枚目の画像を認識したときに表示 -->
+      <a-entity mindar-image-target="targetIndex: 0" smooth-track="factor: 0.15">
+        <!-- GLBモデル（Meshy AIモデルはmm単位のため scale=333 で約1m相当） -->
+        <a-gltf-model
+          id="ar-model"
+          src="#my-model"
+          position="0 0 0"
+          scale="999 999 999"
+          rotation="0 0 0"
+          animation-mixer="clip: *; loop: repeat"
+        ></a-gltf-model>
+      </a-entity>
     </a-scene>
 
+    <script is:inline define:vars={{ isDev }}>
+      const hint = document.getElementById('hint')
+
+      // デバッグオーバーレイ（dev環境のみ）
+      function log(msg) {
+        console.log('[AR]', msg)
+        if (!isDev) return
+        let dbg = document.getElementById('ar-dbg')
+        if (!dbg) {
+          dbg = document.createElement('div')
+          dbg.id = 'ar-dbg'
+          dbg.style.cssText = 'position:fixed;bottom:6rem;left:1rem;right:1rem;z-index:9999;background:rgba(0,0,0,0.7);color:#0f0;font-size:11px;font-family:monospace;padding:8px;border-radius:8px;max-height:40vh;overflow-y:auto;word-break:break-all;'
+          document.body.appendChild(dbg)
+        }
+        const line = document.createElement('div')
+        line.textContent = new Date().toISOString().slice(11,19) + ' ' + msg
+        dbg.prepend(line)
+      }
+
+      if (isDev) {
+        log('UA: ' + navigator.userAgent.slice(0, 80))
+        log('HTTPS: ' + (location.protocol === 'https:'))
+        log('WebGL: ' + !!document.createElement('canvas').getContext('webgl'))
+        navigator.mediaDevices?.getUserMedia({video: true})
+          .then(() => log('Camera: OK'))
+          .catch(e => log('Camera ERROR: ' + e.name + ' ' + e.message))
+      }
+
+      const scene = document.querySelector('a-scene')
+      scene.addEventListener('arReady', () => {
+        log('arReady')
+        hint.textContent = 'マーカー画像にカメラを向けてください'
+      })
+      scene.addEventListener('arError', (e) => {
+        log('arError: ' + JSON.stringify(e.detail))
+        hint.textContent = 'エラーが発生しました'
+      })
+
+      // GLBモデルのロード・SkinnedMeshのフラスタムカリング無効化
+      const modelEl = document.getElementById('ar-model')
+      if (modelEl) {
+        modelEl.addEventListener('model-loaded', (e) => {
+          log('GLB loaded OK')
+          e.detail.model.traverse(child => {
+            if (child.isSkinnedMesh || child.isMesh) child.frustumCulled = false
+          })
+        })
+        modelEl.addEventListener('model-error', (e) => log('GLB ERROR: ' + JSON.stringify(e.detail)))
+      }
+
+      // マーカーを見失っても HOLD_MS ミリ秒間はモデルを保持する
+      const HOLD_MS = 2000
+      let hideTimer = null
+      const targetEl = document.querySelector('[mindar-image-target]')
+
+      targetEl?.addEventListener('targetFound', () => {
+        log('targetFound!')
+        // 非表示タイマーをキャンセル
+        if (hideTimer) { clearTimeout(hideTimer); hideTimer = null }
+        // モデルを表示状態に戻す
+        if (modelEl) modelEl.setAttribute('visible', 'true')
+        hint.style.display = 'none'
+      })
+
+      targetEl?.addEventListener('targetLost', () => {
+        log('targetLost – holding ' + HOLD_MS + 'ms')
+        hint.style.display = 'block'
+        hint.textContent = 'マーカー画像にカメラを向けてください'
+        // HOLD_MS 後にモデルを非表示
+        hideTimer = setTimeout(() => {
+          if (modelEl) modelEl.setAttribute('visible', 'false')
+          hideTimer = null
+        }, HOLD_MS)
+      })
+    </script>
   </body>
 </html>

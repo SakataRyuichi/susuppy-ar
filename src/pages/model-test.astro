@@ -1,0 +1,67 @@
+---
+// GLBモデル単体テストページ
+---
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Model Test</title>
+    <script is:inline src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script is:inline src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.5.0/dist/aframe-extras.min.js"></script>
+    <style>
+      body { margin: 0; background: #111; }
+      #info {
+        position: fixed; top: 1rem; left: 1rem; z-index: 999;
+        color: white; font-family: monospace; font-size: 14px;
+        background: rgba(0,0,0,0.7); padding: 8px 12px; border-radius: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="info">モデル読み込み中...</div>
+
+    <a-scene background="color: #222">
+      <a-assets>
+        <a-asset-item id="model" src="/ar-content/Meshy_AI_model_Animation_Walking_withSkin.glb"></a-asset-item>
+      </a-assets>
+
+      <!-- モデルを正面に表示（スケール333 = 約1m相当） -->
+      <a-gltf-model
+        id="test-model"
+        src="#model"
+        position="0 0 -3"
+        scale="333 333 333"
+        rotation="0 0 0"
+        animation-mixer="clip: *; loop: repeat"
+      ></a-gltf-model>
+
+      <!-- 参照用の赤ボックス（モデルと同じ位置） -->
+      <a-box position="0 0 -3" scale="0.2 0.2 0.2" color="red"></a-box>
+
+      <!-- ライト -->
+      <a-light type="ambient" intensity="1"></a-light>
+      <a-light type="directional" position="1 2 1" intensity="1.5"></a-light>
+
+      <a-camera position="0 1.6 0"></a-camera>
+    </a-scene>
+
+    <script is:inline>
+      const info = document.getElementById('info')
+      const model = document.getElementById('test-model')
+      model.addEventListener('model-loaded', (e) => {
+        const obj = e.detail.model
+        obj.traverse(child => {
+          if (child.isSkinnedMesh || child.isMesh) {
+            child.frustumCulled = false
+          }
+        })
+        info.textContent = '✅ モデルロード完了'
+        info.style.color = '#0f0'
+      })
+      model.addEventListener('model-error', (e) => {
+        info.textContent = '❌ ロードエラー: ' + JSON.stringify(e.detail)
+        info.style.color = 'red'
+      })
+    </script>
+  </body>
+</html>
